@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";  // ✅ for redirection
 import { db, storage } from "@/firebase/config";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -17,6 +18,7 @@ const categories = [
 ];
 
 export default function StudentDashboard() {
+  const router = useRouter(); // ✅ initialize router
   const [formData, setFormData] = useState({
     category: "",
     subject: "",
@@ -69,16 +71,8 @@ export default function StudentDashboard() {
         createdAt: serverTimestamp(),
       });
 
-      alert("✅ Complaint submitted successfully!");
-      setFormData({
-        category: "",
-        subject: "",
-        property: "",
-        location: "",
-        description: "",
-        priority: "Medium Priority",
-        files: [],
-      });
+      // ✅ Redirect to "My Complaints" page instead of alert
+      router.push("/my-complaints");
     } catch (error) {
       console.error("Error:", error);
       alert("❌ Error submitting complaint.");
