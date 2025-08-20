@@ -1,14 +1,20 @@
 "use client";
+
 import { useState } from "react";
-import { auth, db } from "@/firebase/config";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";  // Added import for getDoc
 import { useRouter } from "next/navigation";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth, db } from "@/firebase/config";
+import { doc, getDoc } from "firebase/firestore";
 import Image from "next/image";
 
-export default function Login() {
+// 🔑 Apna secret key
+const MAINTENANCE_KEY = "gehuservice@04";
+
+export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState(null);
+  const [key, setKey] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
@@ -17,24 +23,33 @@ export default function Login() {
     setIsLoading(true);
 
     try {
+      // Firebase Auth login
       const userCred = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCred.user;
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      const role = userDoc.data()?.role || "student";  // Fallback to student if role not found
 
-      if (role === "maintenance") {
-        router.push("/maintenance-dashboard");
+      // Firestore se user role lana
+      const docSnap = await getDoc(doc(db, "users", userCred.user.uid));
+
+      if (docSnap.exists()) {
+        const userData = docSnap.data();
+        setRole(userData.role);
+
+        // Agar role maintenance hai to key check karo
+        if (userData.role === "maintenance") {
+          if (key !== MAINTENANCE_KEY) {
+            alert("Invalid Maintenance Key!");
+            setIsLoading(false);
+            return;
+          }
+          router.push("/maintenance-dashboard");
+        } else {
+          // Agar student hai to student dashboard
+          router.push("/student-dashboard");
+        }
       } else {
-        router.push("/student-dashboard");
+        alert("No user data found!");
       }
     } catch (error) {
-      if (error.code === "auth/user-not-found") {
-        alert("User not found. Please sign up.");
-      } else if (error.code === "auth/wrong-password") {
-        alert("Incorrect password.");
-      } else {
-        alert(error.message);
-      }
+      alert(error.message);
     } finally {
       setIsLoading(false);
     }
@@ -42,8 +57,8 @@ export default function Login() {
 
   return (
     <div className="relative min-h-screen w-full">
-      {/* Background Image - Now more visible */}
-      <div className="absolute inset-0 z-0">
+      {/* Background Image */}
+      <div className="absolute inset-0 z-0 h-full">
         <Image
           src="/images/college-bg.jpeg"
           alt="College Background"
@@ -52,23 +67,25 @@ export default function Login() {
           className="opacity-90"
           priority
         />
-        <div className="absolute inset-0 bg-red bg-opacity-20"></div>
       </div>
-      
-      {/* Login Form - Now with better contrast */}
+
+      {/* Login Form */}
       <div className="relative z-10 flex items-center justify-center min-h-screen px-4">
         <form
           onSubmit={handleLogin}
-          className="flex flex-col gap-4 bg-white/90 backdrop-blur-sm p-8 rounded-xl shadow-2xl w-full max-w-md border border-white/20"
+          className="flex flex-col gap-6 bg-white/90 backdrop-blur-sm p-8 rounded-xl shadow-2xl w-full max-w-md border border-white/20"
         >
           <div className="text-center">
-            <h2 className="text-3xl font-bold text-gray-800 mb-1">Welcome Back</h2>
-            <p className="text-black-600">Login to your account</p>
+            <h2 className="text-3xl font-bold text-gray-800 mb-1">Login</h2>
+            <p className="text-gray-600">Welcome back! Please log in</p>
           </div>
-          
+
           <div className="space-y-4">
+            {/* Email */}
             <div className="flex flex-col gap-2">
-              <label htmlFor="email" className="text-gray-700 font-medium">Email</label>
+              <label htmlFor="email" className="text-gray-700 font-medium">
+                Email
+              </label>
               <input
                 id="email"
                 type="email"
@@ -79,9 +96,12 @@ export default function Login() {
                 className="p-3 rounded-lg bg-white text-gray-800 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            
+
+            {/* Password */}
             <div className="flex flex-col gap-2">
-              <label htmlFor="password" className="text-gray-700 font-medium">Password</label>
+              <label htmlFor="password" className="text-gray-700 font-medium">
+                Password
+              </label>
               <input
                 id="password"
                 type="password"
@@ -92,37 +112,45 @@ export default function Login() {
                 className="p-3 rounded-lg bg-white text-gray-800 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
+
+            {/* Maintenance Key - show only if role = maintenance */}
+            {role === "maintenance" && (
+              <div className="flex flex-col gap-2">
+                <label htmlFor="key" className="text-gray-700 font-medium">
+                  Maintenance Key
+                </label>
+                <input
+                  id="key"
+                  type="password"
+                  placeholder="Enter maintenance key"
+                  value={key}
+                  onChange={(e) => setKey(e.target.value)}
+                  className="p-3 rounded-lg bg-white text-gray-800 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            )}
           </div>
-          
+
+          {/* Submit Button */}
           <button
             type="submit"
             disabled={isLoading}
             className={`p-3 rounded-lg text-white font-medium transition-colors ${
-              isLoading 
-                ? "bg-blue-600 cursor-not-allowed" 
+              isLoading
+                ? "bg-blue-600 cursor-not-allowed"
                 : "bg-blue-600 hover:bg-blue-700"
             }`}
           >
-            {isLoading ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Logging in...
-              </span>
-            ) : (
-              "Login"
-            )}
+            {isLoading ? "Logging in..." : "Login"}
           </button>
-          
+
           <p className="text-center text-gray-600">
-            Don't have an account?{" "}
-            <a 
-              href="/signup" 
+            Don’t have an account?{" "}
+            <a
+              href="/signup"
               className="text-blue-600 hover:text-blue-800 underline transition-colors"
             >
-              Sign up
+              Sign Up
             </a>
           </p>
         </form>
