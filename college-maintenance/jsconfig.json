@@ -3,6 +3,7 @@
     "baseUrl": "src",
     "paths": {
       "@/*": ["*"]
-    }
+    },
+    "moduleResolution": "node"
   }
 }
