@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";  // ✅ for redirection
-import { db, storage } from "@/firebase/config";
+import { useRouter } from "next/navigation";
+import { db } from "@/firebase/config";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const categories = [
   { name: "Electrical", desc: "Power outages, faulty wiring, lighting issues", icon: "⚡" },
@@ -18,7 +17,7 @@ const categories = [
 ];
 
 export default function StudentDashboard() {
-  const router = useRouter(); // ✅ initialize router
+  const router = useRouter();
   const [formData, setFormData] = useState({
     category: "",
     subject: "",
@@ -26,17 +25,12 @@ export default function StudentDashboard() {
     location: "",
     description: "",
     priority: "Medium Priority",
-    files: [],
   });
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
-    const { name, value, files } = e.target;
-    if (files) {
-      setFormData({ ...formData, files: Array.from(files) });
-    } else {
-      setFormData({ ...formData, [name]: value });
-    }
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
   };
 
   const handleSubmit = async (e) => {
@@ -48,30 +42,12 @@ export default function StudentDashboard() {
 
     setLoading(true);
     try {
-      let fileUrls = [];
-
-      if (formData.files.length > 0) {
-        for (const file of formData.files) {
-          const storageRef = ref(storage, `complaints/${Date.now()}_${file.name}`);
-          await uploadBytes(storageRef, file);
-          const url = await getDownloadURL(storageRef);
-          fileUrls.push(url);
-        }
-      }
-
       await addDoc(collection(db, "complaints"), {
-        category: formData.category,
-        subject: formData.subject,
-        property: formData.property,
-        location: formData.location,
-        description: formData.description,
-        priority: formData.priority,
-        fileUrls: fileUrls,
+        ...formData,
         status: "Pending",
         createdAt: serverTimestamp(),
       });
 
-      // ✅ Redirect to "My Complaints" page instead of alert
       router.push("/my-complaints");
     } catch (error) {
       console.error("Error:", error);
@@ -113,7 +89,7 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {/* Complaint Details Form */}
+        {/* Complaint Form */}
         <form
           onSubmit={handleSubmit}
           className="bg-white shadow-md rounded-xl p-6 space-y-4"
@@ -147,7 +123,7 @@ export default function StudentDashboard() {
           <input
             type="text"
             name="property"
-            placeholder="Property / Building (e.g., Hostel A, Library)"
+            placeholder="Building (e.g., Hostel A, Library)"
             value={formData.property}
             onChange={handleChange}
             required
@@ -173,21 +149,12 @@ export default function StudentDashboard() {
             rows="4"
           />
 
-          <input
-            type="file"
-            name="files"
-            accept="image/*"
-            multiple
-            onChange={handleChange}
-            className="p-3 border rounded-lg w-full"
-          />
-
           <button
             type="submit"
             disabled={loading}
             className="w-full bg-gradient-to-r from-purple-500 to-blue-500 text-white py-3 rounded-lg font-semibold hover:opacity-90 transition"
           >
-            {loading ? "Submitting..." : "🚀 Submit Complaint"}
+            {loading ? "Submitting..." : "Submit Complaint"}
           </button>
         </form>
       </div>

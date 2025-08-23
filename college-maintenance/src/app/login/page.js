@@ -1,39 +1,57 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "@/firebase/config";
 import { doc, getDoc } from "firebase/firestore";
 import Image from "next/image";
 
-// 🔑 Apna secret key
 const MAINTENANCE_KEY = "gehuservice@04";
 
-export default function LoginPage() {
+export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState(null);
   const [key, setKey] = useState("");
+  const [captcha, setCaptcha] = useState("");
+  const [captchaInput, setCaptchaInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
+  // captcha generator
+  const generateCaptcha = () => {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let text = "";
+    for (let i = 0; i < 6; i++) {
+      text += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setCaptcha(text);
+  };
+
+  useEffect(() => {
+    generateCaptcha();
+  }, []);
+
+  // login handler
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-
     try {
-      // Firebase Auth login
-      const userCred = await signInWithEmailAndPassword(auth, email, password);
+      if (captchaInput !== captcha) {
+        alert("Captcha incorrect!");
+        generateCaptcha();
+        setIsLoading(false);
+        return;
+      }
 
-      // Firestore se user role lana
+      const userCred = await signInWithEmailAndPassword(auth, email, password);
       const docSnap = await getDoc(doc(db, "users", userCred.user.uid));
 
       if (docSnap.exists()) {
         const userData = docSnap.data();
         setRole(userData.role);
 
-        // Agar role maintenance hai to key check karo
         if (userData.role === "maintenance") {
           if (key !== MAINTENANCE_KEY) {
             alert("Invalid Maintenance Key!");
@@ -42,7 +60,6 @@ export default function LoginPage() {
           }
           router.push("/maintenance-dashboard");
         } else {
-          // Agar student hai to student dashboard
           router.push("/student-dashboard");
         }
       } else {
@@ -57,101 +74,103 @@ export default function LoginPage() {
 
   return (
     <div className="relative min-h-screen w-full">
-      {/* Background Image */}
-      <div className="absolute inset-0 z-0 h-full">
-        <Image
-          src="/images/college-bg.jpeg"
-          alt="College Background"
-          fill
-          style={{ objectFit: "cover" }}
-          className="opacity-90"
-          priority
-        />
-      </div>
+      {/* Background */}
+      <div
+        className="absolute z-0 bg-cover bg-center"
+        style={{
+          backgroundImage: "url('https://www.gehu.ac.in/assets/GEHU-Dehradun-1abd6f9c.jpg')",
+          width: "100%",
+          height: "900px",
+        }}
+      ></div>
 
-      {/* Login Form */}
-      <div className="relative z-10 flex items-center justify-center min-h-screen px-4">
+      {/* Card */}
+      <div className="relative z-10 flex items-center justify-end min-h-screen px-6">
         <form
           onSubmit={handleLogin}
-          className="flex flex-col gap-6 bg-white/90 backdrop-blur-sm p-8 rounded-xl shadow-2xl w-full max-w-md border border-white/20"
+          className="flex flex-col gap-5 bg-white/50 p-8 rounded-lg shadow-2xl w-full max-w-sm border border-gray-200"
         >
-          <div className="text-center">
-            <h2 className="text-3xl font-bold text-gray-800 mb-1">Login</h2>
-            <p className="text-gray-600">Welcome back! Please log in</p>
+          {/* Logo */}
+          <div className="flex justify-center mb-4">
+            <Image
+              src="https://www.italcoholic.in/wp-content/uploads/2017/01/geu.png"
+              alt="University Logo"
+              width={450}
+              height={80}
+              priority
+            />
           </div>
 
-          <div className="space-y-4">
-            {/* Email */}
-            <div className="flex flex-col gap-2">
-              <label htmlFor="email" className="text-gray-700 font-medium">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="p-3 rounded-lg bg-white text-gray-800 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+          {/* Email */}
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="w-full p-3 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
 
-            {/* Password */}
-            <div className="flex flex-col gap-2">
-              <label htmlFor="password" className="text-gray-700 font-medium">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="p-3 rounded-lg bg-white text-gray-800 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+          {/* Password */}
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className="w-full p-3 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
 
-            {/* Maintenance Key - show only if role = maintenance */}
-            {role === "maintenance" && (
-              <div className="flex flex-col gap-2">
-                <label htmlFor="key" className="text-gray-700 font-medium">
-                  Maintenance Key
-                </label>
-                <input
-                  id="key"
-                  type="password"
-                  placeholder="Enter maintenance key"
-                  value={key}
-                  onChange={(e) => setKey(e.target.value)}
-                  className="p-3 rounded-lg bg-white text-gray-800 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            )}
+          {/* Maintenance Key */}
+          {role === "maintenance" && (
+            <input
+              type="password"
+              placeholder="Enter Maintenance Key"
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              className="w-full p-3 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          )}
+
+          {/* Captcha */}
+          <div className="flex items-center gap-3">
+            <div className="bg-gray-200 text-lg font-bold tracking-widest px-4 py-2 rounded">
+              {captcha}
+            </div>
+            <button type="button" onClick={generateCaptcha} className="text-sm text-blue-600">
+              Refresh
+            </button>
           </div>
+          <input
+            type="text"
+            placeholder="Enter Captcha"
+            value={captchaInput}
+            onChange={(e) => setCaptchaInput(e.target.value)}
+            required
+            className="w-full p-3 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
 
-          {/* Submit Button */}
+          {/* Submit */}
           <button
             type="submit"
             disabled={isLoading}
-            className={`p-3 rounded-lg text-white font-medium transition-colors ${
-              isLoading
-                ? "bg-blue-600 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700"
+            className={`w-full py-3 rounded-lg text-white font-semibold transition-colors ${
+              isLoading ? "bg-blue-500 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
             }`}
           >
-            {isLoading ? "Logging in..." : "Login"}
+            {isLoading ? "Processing..." : "LOGIN"}
           </button>
 
-          <p className="text-center text-gray-600">
+          {/* Redirect to Signup */}
+          <p className="text-center text-sm text-gray-600">
             Don’t have an account?{" "}
-            <a
-              href="/signup"
-              className="text-blue-600 hover:text-blue-800 underline transition-colors"
+            <button
+              type="button"
+              onClick={() => router.push("/signup")}
+              className="text-blue-600 hover:underline"
             >
               Sign Up
-            </a>
+            </button>
           </p>
         </form>
       </div>
