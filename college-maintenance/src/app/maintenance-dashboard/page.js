@@ -1,15 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
 import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
-import { db, storage } from "@/firebase/config";
-import { Card, CardContent } from "@/components/ui/card";
+import { db } from "@/firebase/config";
 
-export default function Dashboard() {
+export default function MaintenanceDashboard() {
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("pending");
+  const [activeTab, setActiveTab] = useState("overview");
 
-  // Fetch complaints
   useEffect(() => {
     const fetchComplaints = async () => {
       try {
@@ -25,11 +23,9 @@ export default function Dashboard() {
         setLoading(false);
       }
     };
-
     fetchComplaints();
   }, []);
 
-  // Update status
   const updateStatus = async (id, newStatus) => {
     try {
       const complaintRef = doc(db, "complaints", id);
@@ -44,99 +40,216 @@ export default function Dashboard() {
 
   if (loading) return <p className="text-center mt-5">Loading...</p>;
 
-  const filteredComplaints = complaints.filter((c) => c.status === filter);
+  const total = complaints.length;
+  const pending = complaints.filter((c) => c.status === "pending").length;
+  const inProgress = complaints.filter((c) => c.status === "in-progress").length;
+  const resolved = complaints.filter((c) => c.status === "completed").length;
 
   return (
-    <div className="p-8 min-h-screen bg-gradient-to-r from-blue-50 to-indigo-100">
-      <h1 className="text-3xl font-bold mb-6 text-center text-indigo-700">
-        🛠 Maintenance Dashboard
-      </h1>
+    <div className="p-6 min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-6 border-b pb-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">
+            Maintenance Dashboard
+          </h1>
+          <p className="text-sm text-gray-500">
+            Graphic Era Hill University, Bhimtal
+          </p>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <p className="font-semibold">Chirag Goswami</p>
+            <p className="text-sm text-gray-500">chiraguniversity@edu</p>
+          </div>
+          <button className="px-4 py-2 bg-red-500 text-white rounded-lg shadow hover:bg-red-600">
+            Logout
+          </button>
+        </div>
+      </div>
 
-      {/* Filter Buttons */}
-      <div className="flex justify-center gap-4 mb-8">
+      {/* Tabs */}
+      <div className="flex justify-center mb-8 bg-gray-100 rounded-full w-fit mx-auto">
         <button
-          onClick={() => setFilter("pending")}
-          className={`px-6 py-2 rounded-xl shadow-md font-medium transition ${
-            filter === "pending"
+          onClick={() => setActiveTab("overview")}
+          className={`px-6 py-2 rounded-l-full font-medium ${
+            activeTab === "overview"
               ? "bg-indigo-600 text-white"
-              : "bg-white border hover:bg-indigo-50"
+              : "text-gray-700"
           }`}
         >
-          Pending
+          Overview
         </button>
         <button
-          onClick={() => setFilter("completed")}
-          className={`px-6 py-2 rounded-xl shadow-md font-medium transition ${
-            filter === "completed"
-              ? "bg-green-600 text-white"
-              : "bg-white border hover:bg-green-50"
+          onClick={() => setActiveTab("all")}
+          className={`px-6 py-2 rounded-r-full font-medium ${
+            activeTab === "all"
+              ? "bg-indigo-600 text-white"
+              : "text-gray-700"
           }`}
         >
-          Completed
+          All Complaints
         </button>
       </div>
 
-      {/* Complaints Grid */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredComplaints.length === 0 ? (
-          <p className="col-span-full text-center text-gray-600">
-            No complaints found 🚫
-          </p>
-        ) : (
-          filteredComplaints.map((complaint) => (
-            <Card
-              key={complaint.id}
-              className="rounded-2xl shadow-lg bg-white hover:shadow-xl transition"
+      {/* Overview Tab */}
+      {activeTab === "overview" && (
+        <>
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <StatCard title="Total Complaints" value={total} icon="⚙️" />
+            <StatCard title="Pending" value={pending} icon="⏳" color="orange" />
+            <StatCard
+              title="In Progress"
+              value={inProgress}
+              icon="🔵"
+              color="blue"
+            />
+            <StatCard title="Resolved" value={resolved} icon="✅" color="green" />
+          </div>
+
+          {/* Recent Complaints */}
+          <div className="bg-white shadow rounded-lg p-6">
+            <h2 className="text-lg font-bold mb-4">Recent Complaints</h2>
+            <div className="space-y-4">
+              {complaints.slice(0, 3).map((c) => (
+                <ComplaintItem key={c.id} complaint={c} compact />
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* All Complaints Tab */}
+      {activeTab === "all" && (
+        <div className="bg-white shadow rounded-lg p-6">
+          {/* Filters */}
+          <div className="flex flex-wrap gap-4 mb-6">
+            <input
+              type="text"
+              placeholder="Search complaints..."
+              className="p-2 border rounded-lg flex-1"
+            />
+            <select className="p-2 border rounded-lg">
+              <option>All Categories</option>
+            </select>
+            <select className="p-2 border rounded-lg">
+              <option>All Status</option>
+              <option>Pending</option>
+              <option>In Progress</option>
+              <option>Resolved</option>
+            </select>
+            <select className="p-2 border rounded-lg">
+              <option>All Priority</option>
+              <option>High</option>
+              <option>Medium</option>
+              <option>Low</option>
+            </select>
+          </div>
+
+          {/* Complaints List */}
+          <div className="space-y-4">
+            {complaints.map((c) => (
+              <ComplaintItem
+                key={c.id}
+                complaint={c}
+                updateStatus={updateStatus}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* Stats Card */
+function StatCard({ title, value, icon, color }) {
+  const colors = {
+    orange: "text-orange-500",
+    blue: "text-blue-500",
+    green: "text-green-600",
+    gray: "text-gray-700",
+  };
+  return (
+    <div className="p-6 bg-white shadow rounded-lg text-center">
+      <p className="text-gray-500 flex items-center justify-center gap-2">
+        <span>{icon}</span> {title}
+      </p>
+      <h2 className={`text-2xl font-bold ${colors[color] || colors.gray}`}>
+        {value}
+      </h2>
+    </div>
+  );
+}
+
+/* Complaint Item */
+function ComplaintItem({ complaint, compact, updateStatus }) {
+  return (
+    <div className="p-4 border rounded-lg flex justify-between items-center">
+      <div>
+        <p className="font-medium">{complaint.title}</p>
+        {!compact && (
+          <p className="text-sm text-gray-500">{complaint.description}</p>
+        )}
+        <p className="text-xs text-gray-400 mt-1">
+          {complaint.location || "Main Building"} •{" "}
+          {complaint.date || "Jan 15, 2024, 04:00 PM"}
+        </p>
+      </div>
+      <div className="flex items-center gap-2">
+        {/* Priority Badge */}
+        <span
+          className={`px-3 py-1 rounded-full text-sm font-medium ${
+            complaint.priority === "high"
+              ? "bg-red-100 text-red-600"
+              : complaint.priority === "medium"
+              ? "bg-yellow-100 text-yellow-600"
+              : "bg-green-100 text-green-600"
+          }`}
+        >
+          {complaint.priority || "Medium"}
+        </span>
+
+        {/* Status Badge */}
+        <span
+          className={`px-3 py-1 rounded-full text-sm font-medium ${
+            complaint.status === "pending"
+              ? "bg-orange-100 text-orange-700"
+              : complaint.status === "in-progress"
+              ? "bg-blue-100 text-blue-700"
+              : "bg-green-100 text-green-700"
+          }`}
+        >
+          {complaint.status}
+        </span>
+
+        {/* Action Buttons */}
+        {!compact && (
+          <>
+            <button className="px-4 py-1 bg-gray-100 rounded hover:bg-gray-200">
+              View
+            </button>
+            <button
+              onClick={() =>
+                updateStatus &&
+                updateStatus(
+                  complaint.id,
+                  complaint.status === "pending"
+                    ? "in-progress"
+                    : complaint.status === "in-progress"
+                    ? "completed"
+                    : "pending"
+                )
+              }
+              className="px-4 py-1 bg-indigo-500 text-white rounded hover:bg-indigo-600"
             >
-              <CardContent className="p-5">
-                <h2 className="text-lg font-semibold text-gray-800 mb-2">
-                  {complaint.title}
-                </h2>
-                <p className="text-gray-600">{complaint.description}</p>
-
-                <p className="mt-3 text-sm">
-                  <span className="font-medium">Status:</span>{" "}
-                  <span
-                    className={`${
-                      complaint.status === "pending"
-                        ? "text-red-500 font-semibold"
-                        : "text-green-600 font-semibold"
-                    }`}
-                  >
-                    {complaint.status}
-                  </span>
-                </p>
-
-                {complaint.imageBase64 && (
-                  <img
-                    src={complaint.imageBase64}
-                    alt="Complaint"
-                    className="w-full h-40 object-cover rounded-lg mt-3"
-                  />
-                )}
-
-                <div className="mt-4 flex justify-between">
-                  {complaint.status === "pending" ? (
-                    <button
-                      onClick={() => updateStatus(complaint.id, "completed")}
-                      className="px-4 py-2 bg-green-500 text-white rounded-lg shadow hover:bg-green-600 transition"
-                    >
-                      Mark Completed ✅
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => updateStatus(complaint.id, "pending")}
-                      className="px-4 py-2 bg-yellow-500 text-white rounded-lg shadow hover:bg-yellow-600 transition"
-                    >
-                      Mark Pending ⏳
-                    </button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))
+              Update
+            </button>
+          </>
         )}
       </div>
     </div>
   );
-}
+}// this is comment
+
